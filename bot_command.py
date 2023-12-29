@@ -4,6 +4,8 @@ from discord.ext import commands
 import sqlite3
 from macro import *
 from tools import is_channel
+import threading
+import discord
 
 def great_spirit_command(bot, intents):
 
@@ -111,4 +113,46 @@ salons ecrit ainsi que {numbervoicechannels} vocaux"
             except Exception as e:
                 print(e)
                 await ctx.send(ERROR_MESSAGE_PLUMERIE)
+
+
+    @bot.command(name='test')
+    async def test(ctx):
+        # Trouver le canal 'test' par son ID
+        channel_test = bot.get_channel(CHANNEL_TEST)
+        ROLE_NAME = "test"
+        
+        # Créer le rôle 'test' s'il n'existe pas
+        role = discord.utils.get(ctx.guild.roles, name=ROLE_NAME)
+        if role is None:
+            role = await ctx.guild.create_role(name=ROLE_NAME)
+        
+        # Envoyer un message dans le canal 'test'
+        message = await channel_test.send(f"Réagissez avec ✅ pour obtenir le rôle '{ROLE_NAME}'.")
+        
+        # Attendre la réaction de l'utilisateur
+        def check(reaction, user):
+            return user == ctx.author and str(reaction.emoji) == '✅'
+        
+        reaction, user = await bot.wait_for('reaction_add', check=check)
+        
+        # Assigner le rôle au membre
+        await ctx.author.add_roles(role)
+        
+        # Envoyer un message de confirmation
+        await channel_test.send(f"Rôle '{ROLE_NAME}' attribué à {ctx.author.mention}.")
+        
+        # Créer un thread avec le nom du rôle
+        thread_name = f"{ROLE_NAME}_thread"
+        overwrites = {
+            ctx.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
+            role: discord.PermissionOverwrite(read_messages=True)
+        }
+        thread_channel = await ctx.guild.create_text_channel(name=thread_name, overwrites=overwrites)
+        
+        # Envoyer un message dans le thread
+        await thread_channel.send(f"Bienvenue dans le thread pour le rôle '{ROLE_NAME}'!")
+
+
+
     return 0
